@@ -40,6 +40,7 @@ def processar(pacote):
 
                 # salva imediatamente no arquivo
                 salvar_credenciais(email, senha)
+                time.sleep(1)
                 subprocess.run([python_venv, "selenium_automation.py"])
                 print("-----------------------------------------\n")
 
