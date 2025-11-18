@@ -1,71 +1,104 @@
 import os
-import glob
 import time
+import glob
+import threading
+
+DIR_RELATORIOS = "/root/.set/reports"
 
 
-email = ''
-password = ''
-
-def encontrar_arquivo_mais_recente(diretorio):
-    # Lista todos os arquivos no diretório (inclusive dentro de subpastas se necessário)
-    # O SET costuma criar uma pasta XML ou HTML. Vamos focar em achar o arquivo XML ou texto modificado.
-    # Para simplificar, vamos buscar qualquer arquivo na estrutura de reports.
-    list_of_files = glob.glob(diretorio + "/*", recursive=True)
-
-    if not list_of_files:
-        return None
-
-    # Retorna o arquivo com a data de criação mais recente
-    latest_file = max(list_of_files, key=os.path.getctime)
-    return latest_file
-
-
-def monitorar_arquivo(caminho_arquivo):
-    global email, password
-
-    print(f"[*] Monitorando o arquivo: {caminho_arquivo}")
+def ler_arquivo_em_tempo_real(caminho):
+    """
+    Leitura contínua (tail -f).
+    Captura apenas EMAIL= e PASSWD=
+    """
+    print(f"[+] Monitorando arquivo: {caminho}")
 
     try:
-        with open(caminho_arquivo, 'r', errors='ignore') as f:
-            f.seek(0, 2)  # Vai para o final
+        with open(caminho, "r", errors="ignore") as f:
+            f.seek(0, os.SEEK_END)  # Vai para o fim
 
             while True:
-                line = f.readline()
-                if not line:
+                linha = f.readline()
+
+                if not linha:
                     time.sleep(0.1)
                     continue
 
-                line = line.strip()  # Remove espaços e quebras de linha extras
+                linha = linha.strip()
 
-                # --- Lógica de Captura ---
-                if "Email=" in line:
-                    # Tenta quebrar a linha no sinal de igual
-                    partes = line.split("=")
-                    if len(partes) > 1:
-                        email = partes[1]  # Pega o que vem depois do =
-                        print(f"[+] Email guardado na variavel global: {email}")
+                # Normaliza para evitar case sensitividade
+                lower = linha.lower()
 
-                if "passwd=" in line or "Passwd=" in line:
-                    partes = line.split("=")
-                    if len(partes) > 1:
-                        password = partes[1]
-                        print(f"[+] Senha guardada na variavel global: {password}")
+                # ---------------------------------------------------------
+                # CAPTURA EMAIL
+                # ---------------------------------------------------------
+                if "email=" in lower:
+                    # Obtém a parte depois do '='
+                    valor = linha.split("=", 1)[1]
+                    print(f"[EMAIL] {valor}")
 
-    except KeyboardInterrupt:
-        print("\nParando...")
+                # ---------------------------------------------------------
+                # CAPTURA SENHA
+                # ---------------------------------------------------------
+                if "passwd=" in lower:
+                    valor = linha.split("=", 1)[1]
+                    print(f"[PASSWD] {valor}")
+
+    except FileNotFoundError:
+        pass
+
+
+def aguardar_arquivo():
+    """
+    Fica parado até que a pasta tenha pelo menos UM arquivo.
+    """
+    print("[*] Aguardando arquivos aparecerem em /root/.set/reports ...")
+
+    while True:
+        lista = glob.glob(os.path.join(DIR_RELATORIOS, "**/*"), recursive=True)
+        lista = [f for f in lista if os.path.isfile(f)]
+
+        if lista:
+            print(f"[+] {len(lista)} arquivo(s) encontrado(s). Iniciando monitoramento...")
+            return lista
+
+        time.sleep(1)
+
+
+def monitorar_diretorio():
+    """
+    Monitora toda a pasta por novos arquivos e começa a ler em tempo real.
+    """
+    arquivos_monitorados = set()
+
+    # Primeiro espera aparecer arquivos
+    arquivos_iniciais = aguardar_arquivo()
+
+    # Começa lendo os existentes
+    for arquivo in arquivos_iniciais:
+        arquivos_monitorados.add(arquivo)
+        threading.Thread(target=ler_arquivo_em_tempo_real, args=(arquivo,), daemon=True).start()
+
+    # Agora monitora por novos arquivos
+    while True:
+        lista = glob.glob(os.path.join(DIR_RELATORIOS, "**/*"), recursive=True)
+        lista = [f for f in lista if os.path.isfile(f)]
+
+        for arquivo in lista:
+            if arquivo not in arquivos_monitorados:
+                arquivos_monitorados.add(arquivo)
+                print(f"[+] Novo arquivo detectado: {arquivo}")
+                threading.Thread(target=ler_arquivo_em_tempo_real, args=(arquivo,), daemon=True).start()
+
+        time.sleep(1)
 
 
 def main():
-    arquivo_recente = encontrar_arquivo_mais_recente('/root/.set/reports')
+    if not os.path.exists(DIR_RELATORIOS):
+        print(f"Diretório não encontrado: {DIR_RELATORIOS}")
+        return
 
-    # Se não achar na pasta padrão, tenta achar no diretório atual (caso tenha salvo log manual)
-    if not arquivo_recente:
-        print("[-] Nenhum relatório encontrado em /root/.set/reports.")
-        # Tenta buscar um arquivo txt local se você usou o 'tee' do exemplo anterior
-        exit()
-    monitorar_arquivo(arquivo_recente)
-    print(email)
-    print(password)
+    monitorar_diretorio()
 
 
 if __name__ == "__main__":
