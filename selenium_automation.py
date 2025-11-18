@@ -9,9 +9,21 @@ import time
 def expand_shadow(driver, element):
     return driver.execute_script('return arguments[0].shadowRoot', element)
 
+email = ""
+senha = ""
+
+try:
+    with open("captura.txt", "r", encoding="utf-8") as f:
+        linha = f.readline().strip()  # lê a primeira linha
+        if linha:
+            partes = linha.split(" ", 1)  # separa em 2 partes: email e senha
+            email = partes[0]
+            senha = partes[1] if len(partes) > 1 else ""
+except FileNotFoundError:
+    print("Arquivo captura.txt não encontrado.")
+
 try:
     print("Enter the gmailid and password")
-    gmailId, passWord = map(str, input().split())
 
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
     wait = WebDriverWait(driver, 20)
@@ -20,7 +32,7 @@ try:
 
     # --- EMAIL ---
     email_input = wait.until(EC.presence_of_element_located((By.ID, "identifierId")))
-    email_input.send_keys(gmailId)
+    email_input.send_keys(email)
 
     driver.find_element(By.ID, "identifierNext").click()
 
@@ -29,7 +41,7 @@ try:
     password_input = wait.until(
         EC.presence_of_element_located((By.NAME, "Passwd"))
     )
-    password_input.send_keys(passWord)
+    password_input.send_keys(senha)
 
     # Espera a div que contém o botão
     password_next_div = wait.until(
