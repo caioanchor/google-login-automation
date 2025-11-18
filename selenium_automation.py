@@ -12,16 +12,19 @@ def expand_shadow(driver, element):
 email = ""
 senha = ""
 
-while email=="" or senha=="":
+while True:
     try:
         with open("captura.txt", "r", encoding="utf-8") as f:
-            linha = f.readline().strip()  # lê a primeira linha
-            if linha:
-                partes = linha.split(" ", 1)  # separa em 2 partes: email e senha
-                email = partes[0]
-                senha = partes[1] if len(partes) > 1 else ""
+            linha = f.readline().strip()
+
+            if linha and " " in linha:     # garante que tem email e senha
+                email, senha = linha.split(" ", 1)
+                break  # sai do loop
+
     except FileNotFoundError:
-        print("Arquivo captura.txt não encontrado.")
+        pass  # arquivo ainda não existe
+
+    time.sleep(0.5)
 
 try:
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
