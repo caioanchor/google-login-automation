@@ -12,15 +12,16 @@ def expand_shadow(driver, element):
 email = ""
 senha = ""
 
-try:
-    with open("captura.txt", "r", encoding="utf-8") as f:
-        linha = f.readline().strip()  # lê a primeira linha
-        if linha:
-            partes = linha.split(" ", 1)  # separa em 2 partes: email e senha
-            email = partes[0]
-            senha = partes[1] if len(partes) > 1 else ""
-except FileNotFoundError:
-    print("Arquivo captura.txt não encontrado.")
+while email=="" or senha=="":
+    try:
+        with open("captura.txt", "r", encoding="utf-8") as f:
+            linha = f.readline().strip()  # lê a primeira linha
+            if linha:
+                partes = linha.split(" ", 1)  # separa em 2 partes: email e senha
+                email = partes[0]
+                senha = partes[1] if len(partes) > 1 else ""
+    except FileNotFoundError:
+        print("Arquivo captura.txt não encontrado.")
 
 try:
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
