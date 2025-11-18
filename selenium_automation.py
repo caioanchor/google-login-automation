@@ -33,6 +33,7 @@ try:
     driver.get("https://accounts.google.com/")
 
     # --- EMAIL ---
+    time.sleep(1)
     email_input = wait.until(EC.presence_of_element_located((By.ID, "identifierId")))
     email_input.send_keys(email)
 
@@ -40,6 +41,7 @@ try:
 
     # --- SENHA ---
     # Espera a senha
+    time.sleep(1)
     password_input = wait.until(
         EC.presence_of_element_located((By.NAME, "Passwd"))
     )
