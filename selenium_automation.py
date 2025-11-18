@@ -23,8 +23,6 @@ except FileNotFoundError:
     print("Arquivo captura.txt não encontrado.")
 
 try:
-    print("Enter the gmailid and password")
-
     driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
     wait = WebDriverWait(driver, 20)
 
