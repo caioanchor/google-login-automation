@@ -128,7 +128,7 @@ if sudo_uid:
         print(f"[!] Aviso: Não foi possível ajustar HOME do usuário: {e}")
 
 proc = subprocess.Popen(
-    [python_exec, script_automacao],
+    [python_exec, "-u", script_automacao],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
