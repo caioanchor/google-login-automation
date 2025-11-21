@@ -13,6 +13,7 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_ALVO = os.path.join(BASE_DIR, "captura.txt")
 
+print(f"[Selenium] Iniciado PID: {os.getpid()} | User ID: {os.getuid()}")
 print("[Selenium] Aguardando arquivo de credenciais...")
 
 email = ""
@@ -21,32 +22,26 @@ senha = ""
 while True:
     if os.path.exists(ARQUIVO_ALVO):
         try:
+            # Tenta ler com permissão de leitura/escrita
             with open(ARQUIVO_ALVO, "r", encoding="utf-8") as f:
                 content = f.read().strip()
 
-            # Validação extra antes de tentar logar
             if content and " " in content:
                 parts = content.split(" ", 1)
                 if len(parts) == 2:
                     temp_email, temp_senha = parts
-                    # Garante que não estamos lendo lixo ou string vazia
-                    if len(temp_email) > 3 and len(temp_senha) > 0:
+                    if len(temp_email) > 3:
                         email = temp_email
                         senha = temp_senha
                         print(f"[Selenium] Credenciais recebidas: {email}")
-                        # Remove o arquivo para evitar loops
                         try:
                             os.remove(ARQUIVO_ALVO)
-                        except:
-                            pass
+                        except OSError as e:
+                            print(f"[Selenium] Aviso: Não consegui deletar arquivo (permissão?): {e}")
                         break
-                    else:
-                        print("[Selenium] Dados incompletos lidos, aguardando...")
-
             time.sleep(1)
-
         except Exception as e:
-            print(f"[Selenium] Erro de leitura: {e}")
+            print(f"[Selenium] Erro de leitura (tentando novamente): {e}")
             time.sleep(1)
     else:
         time.sleep(0.5)
@@ -55,6 +50,8 @@ while True:
 try:
     options = Options()
     # options.add_argument("--headless") # Descomente se não quiser ver o browser abrindo
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
     service = Service(GeckoDriverManager().install())
     driver = webdriver.Firefox(service=service, options=options)

