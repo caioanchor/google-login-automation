@@ -35,7 +35,7 @@ def realizar_login(email, senha):
         driver = webdriver.Firefox(service=service, options=options)
         wait = WebDriverWait(driver, 20)
 
-        driver.get("https://login.meusiteteste.com/")
+        driver.get("https://accounts.google.com/")
 
         # --- EMAIL ---
         print("[Selenium] Preenchendo Email...")
