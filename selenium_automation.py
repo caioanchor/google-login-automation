@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import os
 
 def expand_shadow(driver, element):
     return driver.execute_script('return arguments[0].shadowRoot', element)
@@ -56,6 +57,8 @@ try:
     driver.execute_script("arguments[0].click();", password_next_div)
 
     print('Login Successful...!!')
+    os.remove("captura.txt")
 
 except:
     print('Login Failed')
+    os.remove("captura.txt")
