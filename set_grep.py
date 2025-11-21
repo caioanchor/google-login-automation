@@ -156,7 +156,7 @@ proc = subprocess.Popen(
 t = threading.Thread(target=monitorar_logs_selenium, args=(proc,), daemon=True)
 t.start()
 
-print("[*] Sniffer ativo (ROOT). Aguardando POSTs...")
+print("[*] Sniffer ativo. Aguardando POSTs...")
 try:
     sniff(filter="tcp port 80", prn=processar, store=False)
 except KeyboardInterrupt:
