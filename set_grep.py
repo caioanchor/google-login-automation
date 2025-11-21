@@ -4,6 +4,7 @@ from scapy.all import sniff, Raw
 from urllib.parse import unquote
 import subprocess
 import threading
+import pwd
 
 # Define caminhos absolutos para evitar erros no subprocesso
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -97,28 +98,50 @@ def processar(pacote):
             pass
 
 
-# Inicia o subprocesso garantindo que o output seja visível para debug
-print(f"[*] Iniciando automação Selenium com: {python_exec}")
+# --- INICIALIZAÇÃO ---
+print(f"[*] Iniciando automação Selenium (Dropando privilégios de root)...")
 script_automacao = os.path.join(BASE_DIR, "selenium_automation.py")
 
+# Prepara a função de downgrade de permissão
 demote_fn = get_demote_function()
 
-# Popen sem pipes para que o Selenium possa usar o stdout se necessário,
-# ou use pipes se quiser silenciar.
+# --- CORREÇÃO CRÍTICA DE AMBIENTE (Fix /root/.wdm) ---
+# Clona o ambiente atual e sobrescreve a HOME para a do usuário real
+env_corrigido = os.environ.copy()
+sudo_uid = os.environ.get('SUDO_UID')
+
+if sudo_uid:
+    try:
+        # Busca dados do usuário real no sistema (/etc/passwd)
+        dados_usuario = pwd.getpwuid(int(sudo_uid))
+        home_usuario = dados_usuario.pw_dir
+        nome_usuario = dados_usuario.pw_name
+
+        # Força o Selenium a usar a Home correta (/home/anchor), não a do Root
+        env_corrigido['HOME'] = home_usuario
+        env_corrigido['USER'] = nome_usuario
+        env_corrigido['LOGNAME'] = nome_usuario
+
+        # Opcional: Remover variáveis específicas do Xauthority do root se causarem conflito
+        # mas geralmente mudar a HOME é suficiente.
+    except Exception as e:
+        print(f"[!] Aviso: Não foi possível ajustar HOME do usuário: {e}")
+
 proc = subprocess.Popen(
     [python_exec, script_automacao],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
     bufsize=1,
-    preexec_fn=demote_fn,  # <--- MÁGICA AQUI: O Selenium roda como seu usuário, não root
-    cwd=BASE_DIR           # Garante que o diretório de trabalho seja o correto
+    preexec_fn=demote_fn,
+    cwd=BASE_DIR,
+    env=env_corrigido  # <--- Passamos o ambiente com a HOME correta aqui
 )
-print("[*] Sniffer ativo. Aguardando POSTs...")
 
 t = threading.Thread(target=monitorar_logs_selenium, args=(proc,), daemon=True)
 t.start()
 
+print("[*] Sniffer ativo (ROOT). Aguardando POSTs...")
 try:
     sniff(filter="tcp port 80", prn=processar, store=False)
 except KeyboardInterrupt:
