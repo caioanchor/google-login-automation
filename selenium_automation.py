@@ -61,7 +61,7 @@ try:
     wait = WebDriverWait(driver, 20)
 
     print(f"[Selenium] Acessando site para login: {email}")
-    driver.get("https://login.meusiteteste.com/")  # URL do seu laboratório
+    driver.get("https://accounts.google.com/")  # URL do seu laboratório
 
     # --- EMAIL ---
     print("[Selenium] Preenchendo Email...")
