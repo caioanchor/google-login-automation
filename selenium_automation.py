@@ -64,10 +64,6 @@ def realizar_login(email, senha):
 
     except Exception as e:
         print(f'[Selenium] Erro durante execução: {e}')
-    finally:
-        if driver:
-            print("[Selenium] Fechando navegador...")
-            driver.quit()
 
 
 # --- LOOP PRINCIPAL ---
